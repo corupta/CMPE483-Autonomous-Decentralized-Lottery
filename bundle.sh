@@ -20,11 +20,12 @@ fi
 rm ozsoy.zip
 rm ozsoy.zip.ots
 rm Report.pdf
-markdown-pdf Readme.md -o Report.pdf
+# markdown-pdf Readme.md -o Report.pdf
+rm -rf src/build/*
 
-zip ozsoy.zip -r src Report.pdf
-#ots-cli.js stamp ozsoy.zip
-# ots-cli.js upgrade ozsoy.zip.ots
+zip ozsoy.zip -r src #Report.pdf
+ots-cli.js stamp ozsoy.zip
+ots-cli.js upgrade ozsoy.zip.ots
 rm Makefile
 rm project2.c
 rm -r ozsoy
