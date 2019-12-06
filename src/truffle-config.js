@@ -25,6 +25,7 @@
 // const mnemonic = fs.readFileSync(".secret").toString().trim();
 
 module.exports = {
+  quiet: true,
   /**
    * Networks define how you connect to your ethereum client and let you set the
    * defaults web3 uses to send transactions. If you don't specify one truffle
@@ -46,6 +47,7 @@ module.exports = {
       host: "127.0.0.1",     // Localhost (default: none)
       port: 8545,            // Standard Ethereum port (default: none)
       network_id: "*",       // Any network (default: none)
+      gasPrice: 1000000      // 1 mwei - made it cheaper for easier testing (default: 100 gwei)
     },
 
     // Another network with more advanced options...
@@ -79,7 +81,7 @@ module.exports = {
 
   // Set default mocha options here, use special reporters etc.
   mocha: {
-    // timeout: 100000
+    timeout: 200000 // 100 ticket lottery takes around 90k ms, so changed the timeout to 200k just in case.
   },
 
   // Configure your compilers

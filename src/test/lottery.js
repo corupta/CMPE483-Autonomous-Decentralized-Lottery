@@ -17,8 +17,13 @@ contract("LotteryContract", (accounts) => {
   let bob = accounts[5];
   let totalMoneySpent = 0;
   let totalMoneyWon = 0;
+  it('should not allow to pay ether to contract', async () => {
+    const [eip20, lottery] = await getContracts();
+    let resp = await lottery.send(20, { from: accounts[0] }).catch(e => e);
+    expect(resp).to.be.an('error');
+  });
   it('should not allow to purchase ticket before approving tl tokens', async () => {
-    let lottery = await LotteryContract.deployed();
+    const [eip20, lottery] = await getContracts();
     let resp = await callAndReturn(lottery.purchaseTicket, number, { from: john });
     expectError(resp, "Please make sure to approve 10 TL tokens for this contract in EIP20 TL Token contract");
   });
@@ -183,7 +188,7 @@ contract("LotteryContract", (accounts) => {
       let wonAmount = resp.toNumber();
       expect(wonAmount, 'won TL tokens must be in range [0,totalMoneySpent]').to.be.within(0, totalMoneySpent);
       let nextAccountBalance = (await eip20.balanceOf.call(account)).toNumber();
-      expect(nextAccountBalance, 'john should receive won TL tokens').to.equal(accountBalance + wonAmount);
+      expect(nextAccountBalance, 'account should receive won TL tokens').to.equal(accountBalance + wonAmount);
       let nextLotteryBalance = (await eip20.balanceOf.call(lottery.address)).toNumber();
       expect(nextLotteryBalance, 'lottery should lose won TL tokens').to.equal(lotteryBalance - wonAmount);
       totalMoneyWon += wonAmount;
