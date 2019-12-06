@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+
 if ! [ -x "$(command -v truffle)" ]; then
   echo 'Error: truffle is not installed.'
   echo 'Install it via npm i -g truffle'

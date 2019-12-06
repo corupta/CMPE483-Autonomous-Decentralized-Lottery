@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 if ! [ -x "$(command -v markdown-pdf)" ]; then
   echo 'Error: markdown-pdf is not installed.'

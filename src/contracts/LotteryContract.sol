@@ -121,13 +121,14 @@ contract LotteryContract {
             "Please make sure to approve 10 TL tokens for this contract in EIP20 TL Token contract"
         );
 
-        ticketNumber = uint32(lotteries[lotteryNumber].tickets.push(Ticket({
+        ticketNumber =  uint32(lotteries[lotteryNumber].tickets.length);
+        lotteries[lotteryNumber].tickets.push(Ticket({
             owner: msg.sender,
-            hash: keccak256(abi.encodePacked(number, msg.sender)),
+            hash: keccak256(abi.encodePacked(number, lotteryNumber, ticketNumber, msg.sender)),
             revealIndex: 0,
             revealed: false,
             redeemed: false
-            }))) - 1;
+        }));
     }
 
     // Reveals submitted number in a ticket in the current lottery
@@ -152,7 +153,7 @@ contract LotteryContract {
     notRevealedTicketOnly(lotteryNumber, ticketNumber)
     public {
         require(
-            (lotteries[lotteryNumber].tickets[ticketNumber].hash == keccak256(abi.encodePacked(number, msg.sender))),
+            (lotteries[lotteryNumber].tickets[ticketNumber].hash == keccak256(abi.encodePacked(number, lotteryNumber, ticketNumber, msg.sender))),
             "You revealed a wrong number, make sure to reveal the number you submitted"
         );
         lotteries[lotteryNumber].tickets[ticketNumber].revealed = true;
