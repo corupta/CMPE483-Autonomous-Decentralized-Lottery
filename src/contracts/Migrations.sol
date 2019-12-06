@@ -1,3 +1,8 @@
+/*
+    Default Migrations.sol file used by Truffle
+    https://github.com/trufflesuite/truffle-init-default/blob/master/contracts/Migrations.sol
+*/
+
 pragma solidity >=0.4.25 <0.6.0;
 
 contract Migrations {

@@ -24,11 +24,13 @@ to use TL tokens
     * If `M` is the total collected TL tokens and there are `N` valid tickets 
     (tickets with revealed secret numbers) there would be `ceil(log2(N))` prizes.
     * Each prize is calculated as follows: (Making sure all collected tokens are awarded)
-        * `i=1,2,...ceil(log2(N))` `Pi = floor(M/2^i) + (floor(M/2^(i-1)) MOD 2)`
+    * `i=1,2,...ceil(log2(N))` `Pi = floor(M/2^i) + (floor(M/2^(i-1)) MOD 2)`
     * A ticket may win more than one prizes.
     * Each prize should be awarded to one ticket picket fairly randomly.
         * [See Discussion about generating random numbers](https://ethereum.stackexchange.com/questions/191/how-can-i-securely-generate-a-random-number-in-my-smart-contract)
     * Each ticket can be redeemed anytime after a lottery finishes.
+
+<div style="page-break-after: always;"></div>
 
 ## My Solution
 
@@ -37,7 +39,7 @@ I've created a Solidity contract which contains three callable functions, `purch
 The most challenging part was to rewarding prizes randomly and fairly. My solution to this was:
 * Each submitted `randomNumber` must be a `32 bit unsigned integer`
 * Each ticket has a hashed random number submitted by user.
-    * It hashes it with `msg.sender`, `lotteryNumber`, `ticketNumber` concanated to the `randomNumber`
+    * It hashes it with `msg.sender`, `lotteryNumber`, `ticketNumber` concatenated to the `randomNumber`
     * `msg.sender` is to make sure only the owner can reveal it.
     * `lotteryNumber` is to prevent malicious users to guess the submitted number through comparing previously submitted tickets of other persons.
     * `ticketNumber` is to prevent malicious users to check whether a user submitted the same random number in one lottery twice.
@@ -70,30 +72,33 @@ which are the extra cases causing an advantage to `seed 1 and 2`
 * If the randomNumber is one of those, instead of using it to determine seed, I use the number of valid tickets in the contract, which is also pretty random.
 * Let's say that I award each prize to ticket with `winnerTicket = (seed - 1) % validTicketCount` until I say otherwise.
 * Yet, if I picked the seed as the `validTicketCount` directly, that'd give an unfair advantage to the last revealed ticket such that the first prize would always go to the first ticket.
-    * To prevent it I've used `2^31-1 - validTicketCount` which maps to range `[1, 2^31 - 2]` 
-    (ignoring the case when no valid tickets are there, since redeem function would become uncallable in that case)
-    * Which gives the advantage to first users if there're extremely many valid tickets
-    but gives that advantage to a random ticket since it's very hard to estimate the first winner since
-    `((2^31-1-validTicketCount) - 1) % validTicketCount` as its result changes the winner randomly as well.
-    * In small validTicketCount such scheme is fairly random:
-        * if validTicketCount is 50 the initial seed is 2147483597 and the first winner is 46
-        * if validTicketCount is 49 the initial seed is 2147483598 and the first winner is 42
-        * if validTicketCount is 51 the initial seed is 2147483596 and the first winner is 25
-    * In bigger validTicketCount however it is not and it favors the first revealers:
-        * if validTicketCount is 2147483590, the initial seed is 57 and the first winner is 56
-        * if validTicketCount is 2147483591, the initial seed is 56 and the first winner is 55
-        * if validTicketCount is 2147483589, the initial seed is 58 and the first winner is 57
-    * But, with a tiny modification it is possible to make it all fairly random again:
-    * Instead of using `winnerTicket = (seed - 1) % validTicketCount` directly, 
-    I use `seed = (seed * 16807 mod(2^31 - 1))` once in the beginning.
-        * if validTicketCount is 50 the initial seed is 2147483597 and the first winner is 46
-        * if validTicketCount is 49 the initial seed is 2147483598 and the first winner is 42
-        * if validTicketCount is 51 the initial seed is 2147483596 and the first winner is 24
-        * if validTicketCount is 2147483590, the initial seed is 57 and the first winner is 957998
-        * if validTicketCount is 2147483591, the initial seed is 56 and the first winner is 941191
-        * if validTicketCount is 2147483589, the initial seed is 58 and the first winner is 974805
-    * Which makes it impossible to estimate the first winner in a localized manner such as (the first ones revealed) 
-    but instead changes the outcome randomly with every extra ticket revealed.
+* To prevent it I've used `2^31-1 - validTicketCount` which maps to range `[1, 2^31 - 2]` 
+(ignoring the case when no valid tickets are there, since redeem function would become uncallable in that case)
+* Which gives the advantage to first users if there're extremely many valid tickets
+but gives that advantage to a random ticket since it's very hard to estimate the first winner since
+`((2^31-1-validTicketCount) - 1) % validTicketCount` as its result changes the winner randomly as well.
+* In small validTicketCount such scheme is fairly random:
+    * if validTicketCount is 50 the initial seed is 2147483597 and the first winner is 46
+    * if validTicketCount is 49 the initial seed is 2147483598 and the first winner is 42
+    * if validTicketCount is 51 the initial seed is 2147483596 and the first winner is 25
+* In bigger validTicketCount however it is not and it favors the first revealers:
+    * if validTicketCount is 2147483590, the initial seed is 57 and the first winner is 56
+    * if validTicketCount is 2147483591, the initial seed is 56 and the first winner is 55
+    * if validTicketCount is 2147483589, the initial seed is 58 and the first winner is 57
+* But, with a tiny modification it is possible to make it all fairly random again:
+* Instead of using `winnerTicket = (seed - 1) % validTicketCount` directly, 
+I use `seed = (seed * 16807 mod(2^31 - 1))` once in the beginning.
+    * if validTicketCount is 50 the initial seed is 2147483597 and the first winner is 46
+    * if validTicketCount is 49 the initial seed is 2147483598 and the first winner is 42
+    * if validTicketCount is 51 the initial seed is 2147483596 and the first winner is 24
+    * if validTicketCount is 2147483590, the initial seed is 57 and the first winner is 957998
+    * if validTicketCount is 2147483591, the initial seed is 56 and the first winner is 941191
+    * if validTicketCount is 2147483589, the initial seed is 58 and the first winner is 974805
+* Which makes it impossible to estimate the first winner in a localized manner such as (the first ones revealed) 
+but instead changes the outcome randomly with every extra ticket revealed.
+
+<div style="page-break-after: always;"></div>
+
 * Now, there's only this tiny little problem left: Since the case when only 1 valid ticket exists is meaningless,
 the `(2^31-1-validTicketCount)` maps to `[1,2^31-3]` while our initial seed expects `[1,2^31-2]`.
     * An unfair disadvantage to one/two seed numbers are not a big problem when compared 
@@ -114,11 +119,8 @@ the `(2^31-1-validTicketCount)` maps to `[1,2^31-3]` while our initial seed expe
 [src/contracts/LotteryContract.sol:188-221](./src/contracts/LotteryContract.sol)
 
 
-I've taken an OOP approach, (although there're no extending classes or polymorphism but there're children&parent class objects)
+<div style="page-break-after: always;"></div>
 
-I've created Classes which are responsible for only their tasks.
-
-As a result, every object has its own responsibilities and their internal logic for completing these without interfering with each other's responsibilities.
 
 ### Testing
 
