@@ -48,6 +48,13 @@ contract LotteryContract {
         );
         _;
     }
+    modifier existingLotteryOnly(uint32 lotteryNumber) {
+        require(
+            lotteryNumber < lotteries.length,
+            "Lottery doesn't exists, or skipped due to no submission."
+        );
+        _;
+    }
     modifier ticketExists(uint32 lotteryNumber, uint32 ticketNumber) {
         require(
             (lotteries[lotteryNumber].tickets.length > ticketNumber),
@@ -69,13 +76,13 @@ contract LotteryContract {
         );
         _;
     }
-    modifier revealedTicketOnly(uint32 lotteryNumber, uint32 ticketNumber) {
-        require(
-            (lotteries[lotteryNumber].tickets[ticketNumber].revealed == true),
-            "The number submitted in this ticket is already revealed before"
-        );
-        _;
-    }
+    // modifier revealedTicketOnly(uint32 lotteryNumber, uint32 ticketNumber) {
+    //    require(
+    //        (lotteries[lotteryNumber].tickets[ticketNumber].revealed == true),
+    //        "The number submitted in this ticket was not revealed before"
+    //    );
+    //    _;
+    // }
     //    modifier notRedeemedTicketOnly(uint32 lotteryNumber, uint32 ticketNumber) {
     //        require(
     //            (lotteries[lotteryNumber].tickets[ticketNumber].redeemed == false),
@@ -95,6 +102,17 @@ contract LotteryContract {
     function purchaseTicket(uint32 number)
     purchaseStageOnly
     public returns (uint32 lotteryNumber, uint32 ticketNumber){
+        lotteryNumber = uint32((now - systemBeginTime) / (2 weeks));
+        // create the lottery upon first submission (thus, be careful to check if a lottery exists in reveal & redeem)
+        if (lotteries.length <= lotteryNumber) {
+            lotteries.length = lotteryNumber + 1;
+        }
+        // assume no more than 2^31-2 tickets submitted per lottery.
+        // (That's critically important due to random number mechanism explained below in redeem section)
+        require(
+            lotteries[lotteryNumber].tickets.length < 2**31-2,
+            "Maximum number of tickets are already purchased for that lottery"
+        );
         require(
             eip20ContractAddress.call(abi.encodeWithSignature(
                 "transferFrom(address,address,uint256)",
@@ -102,11 +120,7 @@ contract LotteryContract {
             )),
             "Please make sure to approve 10 TL tokens for this contract in EIP20 TL Token contract"
         );
-        lotteryNumber = uint32((now - systemBeginTime) / (2 weeks));
-        if (lotteries.length <= lotteryNumber) {
-            lotteries.length = lotteryNumber + 1;
-        }
-        // assume no more than 2**32 tickets submitted per lottery.
+
         ticketNumber = uint32(lotteries[lotteryNumber].tickets.push(Ticket({
             owner: msg.sender,
             hash: keccak256(abi.encodePacked(number, msg.sender)),
@@ -132,7 +146,7 @@ contract LotteryContract {
     // now, instead we take lotteryNumber and better inform the sender in such situation
     // with saying that he/she can't reveal number because that lottery has already finished.
     function revealNumber(uint32 number, uint32 lotteryNumber, uint32 ticketNumber)
-    revealStageOnly currentLotteryOnly(lotteryNumber)
+    currentLotteryOnly(lotteryNumber) revealStageOnly
     ticketExists(lotteryNumber, ticketNumber)
     ticketOwnerOnly(lotteryNumber, ticketNumber)
     notRevealedTicketOnly(lotteryNumber, ticketNumber)
@@ -142,8 +156,7 @@ contract LotteryContract {
             "You revealed a wrong number, make sure to reveal the number you submitted"
         );
         lotteries[lotteryNumber].tickets[ticketNumber].revealed = true;
-        lotteries[lotteryNumber].tickets[ticketNumber].revealIndex =
-        lotteries[lotteryNumber].lastRevealIndex;
+        lotteries[lotteryNumber].tickets[ticketNumber].revealIndex = lotteries[lotteryNumber].lastRevealIndex;
         lotteries[lotteryNumber].lastRevealIndex += 1;
         lotteries[lotteryNumber].currentRandom ^= number;
     }
@@ -151,29 +164,74 @@ contract LotteryContract {
     // Redeem ticket prizes from a finished lottery
     function redeemTicket(uint32 lotteryNumber, uint32 ticketNumber)
     pastLotteryOnly(lotteryNumber)
+    existingLotteryOnly(lotteryNumber)
     ticketExists(lotteryNumber, ticketNumber)
     ticketOwnerOnly(lotteryNumber, ticketNumber)
-    revealedTicketOnly(lotteryNumber, ticketNumber)
-        //    notRedeemedTicketOnly(lotteryNumber, ticketNumber)
-    public returns (uint32 wonAmount) {
+    // revealedTicketOnly(lotteryNumber, ticketNumber)
+    // notRedeemedTicketOnly(lotteryNumber, ticketNumber)
+    public returns (uint64 wonAmount) {
         // using some modifiers inline due to stack too deep error !!!
+        require(
+            (lotteries[lotteryNumber].tickets[ticketNumber].revealed == true),
+            "The number submitted in this ticket was not revealed before"
+        );
         require(
             (lotteries[lotteryNumber].tickets[ticketNumber].redeemed == false),
             "The requested ticket is already redeemed before"
         );
         uint32 ticketIndex = lotteries[lotteryNumber].tickets[ticketNumber].revealIndex;
+        uint64 totalMoney = uint32(lotteries[lotteryNumber].tickets.length);
+        totalMoney *= 10;
         uint32 validTicketCount = lotteries[lotteryNumber].lastRevealIndex;
-        uint64 seed = lotteries[lotteryNumber].currentRandom;
+        uint64 seed = ((lotteries[lotteryNumber].currentRandom) % (2**31-2)) + 1;
+        // we need a seed in range [1, 2^31-1] for our PRNG
+        // however our initial random number is in range [0, 2^32 - 1]
+        // if we simply find the seed with ((currentRandom) % (2^31-2)) + 1;
+        // that means the probability of seeds 1 and 2 are 1 times higher than other seeds resulting in an unfair advantage
+        // and these chances are precisely (1/(2^30-1)) more.
+        // ie: each seed has a (2/(2^31-2)) chance of being picked, but seeds 1 and 2 has a (3/(2^31-2)) chance of being picked.
+        // since our PRNG allows each seed to be in range [1, 2^32-2] which as 2^32-2 entries, we limit validTicketCount to that number
+        // if required validTicketCount can be increased by using two seeds per prize in a [seed1][seed2] % validTicketCount manner
+        // but no such requirement was given, so it is assumed that no more than 2^32-2 tickets per lottery is accepted.
+        // to prevent such situation we add the below statement if (currentRandom == 2^32-2 || currentRandom == 2^32-1) customSeed = (2^31-1) - validTicketCount
+        if (lotteries[lotteryNumber].currentRandom == 2**32-2 || lotteries[lotteryNumber].currentRandom == 2**32-1) {
+            seed = (2**31-1) - validTicketCount;
+            // there's still a tiny bit of unfairness here: since the cases of validTicketCount being 0 or 1 is meaningless
+            // (ie: either there's no tickets or there's only one and thus the winner is already known)
+            // if validTicketCount = 0, we know that redeem function can't be called thus no need to make sure the formula works in such case
+            // however the formula should also work when validTicketCount = 1 but its result doesn't really matter.
+            // thus, validTicketCount can be thought of as being in range [2, 2^31-2]
+            // thus, (2^31-1)-validTicketCount is in range [1, 2^31-3] and 2^31-2 seed is not reachable
+            // to share that unreachableness we add the below statement if (customSeed == 2^31-3)customSeed += currentRandom - 2^32-2
+            if (seed == 2**31-3) {
+                seed += lotteries[lotteryNumber].currentRandom - 2**32-2;
+            }
+            // so that both 2^31-3 and 2^31-2 seeds are equally reachable but less likely than other seeds
+        }
+        // overall that causes all seeds to have
+        // (2/(2^31-2) + 2/(2^31-2) * (1/2^31-3)) = (2^32-4)/((2^31-2)(2^31-3)) = (2^32-4)/(2^62-5*2^31+6) = 9.313225759e-10 chance
+        // seeds 2^31-3 and 2^31-2 have
+        // (2/(2^31-2) + 1/(2^31-2) * (1/2^31-3)) = (2^32-5)/((2^31-2)(2^31-3)) = (2^32-5)/(2^62-5*2^31+6) = 9.313225757e-10 chance
+        // so their chance differ by 2e^-19 whereas each has at least 9e-10 chance
+        // so those two seeds are less possible in an ignoribly small amount, which gives an extremely small unfair DISADVANTAGE to these seeds.
+        // HOWEVER an unfair disadvantage to one/two seeds are far less important than an unfair advantage to one/two seeds.
+
+        // still to make sure that tiny little bit of unfairness can't be traced and calculated beforehand and not localized to anywhere
+        // instead of giving the initial prize to the first seed, we make one random iteration and give the initial prize to the next seed.
         wonAmount = 0;
-        uint32 totalMoney = validTicketCount * 10;
         while (totalMoney > 0) {
-            if (seed % validTicketCount == ticketIndex) {
+            seed = (seed * 16807) % 2147483647; // Park and Miller in the Oct 88 issue of CACM
+            if ((seed - 1) % validTicketCount == ticketIndex) { // seed >= 1
                 // ticket won the next prize
                 wonAmount += (totalMoney / 2) + (totalMoney % 2);
             }
             totalMoney = totalMoney / 2;
-            seed = (seed * 16807) % 2147483647; // Park and Miller in the Oct 88 issue of CACM
         }
+        // below require should always succeed, if it doesn't that means
+        // lottery contract does not have enough TL tokens in the EIP20 contract
+        // which means that something went terribly wrong with this lottery contract
+        // it is put there just in case to prevent setting redeemed=true
+        // if the TL tokens weren't successfully transferred for some reason
         require(
             eip20ContractAddress.call(abi.encodeWithSignature(
                 "transfer(address,uint256)",
