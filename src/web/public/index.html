@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>BULOT Web</title>
+    <script src="bulotabi.js"></script>
+    <script src="scripts.js"></script>
+    <style>
+        #result {
+            margin: 16px 2px;
+            max-width: 1200px;
+            padding: 16px;
+            border: 2px groove #888;
+            max-height: 200px;
+            overflow: auto;
+        }
+        #result p {
+            padding: 2px 8px;
+            margin: 4px auto;
+            display: block;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <h1>BULOT Web Interface</h1>
+    <div>
+        <form>
+            <p> Secret Number: <textarea id="secretNumber" rows="1" cols="100"></textarea> </p>
+            <p> Lottery Number: <textarea id="lotteryNumber" rows="1" cols="100"></textarea> </p>
+            <p> Ticket Number: <textarea id="ticketNumber" rows="1" cols="100"></textarea> </p>
+        </form>
+    </div>
+    <div>
+        <button type="button" id="purchaseTicket">Purchase Ticket</button>
+        <button type="button" id="revealNumber">Reveal Number</button>
+        <button type="button" id="queryTicket">Query Ticket</button>
+        <button type="button" id="redeemTicket">Redeem Ticket</button>
+    </div>
+    <div id="result">
+    </div>
+
+    <script>
+        const secretNumberElement = document.getElementById('secretNumber');
+        const lotteryNumberElement = document.getElementById('lotteryNumber');
+        const ticketNumberElement = document.getElementById('ticketNumber');
+        const resultElement = document.getElementById('result');
+        const purchaseTicketButton = document.getElementById('purchaseTicket');
+        const revealNumberButton = document.getElementById('revealNumber');
+        const queryTicketButton = document.getElementById('queryTicket');
+        const redeemTicketButton = document.getElementById('redeemTicket');
+        purchaseTicketButton.addEventListener('click', (ev) => {
+            ev.preventDefault();
+            purchaseTicket(secretNumberElement.value,
+                ({ lotteryNumber, ticketNumber, secretNumber, start, end, from }) => {
+                    let nextResult = `<p>${from} purchased ticket #${ticketNumber || 0} in lottery #${lotteryNumber || 0
+                    } with secret ${secretNumber || 0} (${start.toLocaleString()} - ${end.toLocaleString()})</p>
+                    ${resultElement.innerHTML}`;
+                    updateResultStore(nextResult);
+                    resultElement.innerHTML = nextResult;
+
+                }
+            );
+        })
+        revealNumberButton.addEventListener('click', (ev) => {
+            ev.preventDefault();
+            revealNumber(secretNumberElement.value, lotteryNumberElement.value, ticketNumberElement.value,
+                ({ lotteryNumber, ticketNumber, secretNumber, start, end, from }) => {
+                    let nextResult = `<p>${from} revealed secret ${secretNumber || 0} of ticket #${ticketNumber || 0
+                    } in lottery #${lotteryNumber || 0} (${start.toLocaleString()} - ${end.toLocaleString()})</p>
+                    ${resultElement.innerHTML}`;
+                    updateResultStore(nextResult);
+                    resultElement.innerHTML = nextResult;
+                }
+            );
+        })
+        queryTicketButton.addEventListener('click', (ev) => {
+            ev.preventDefault();
+            queryTicket(lotteryNumberElement.value, ticketNumberElement.value,
+                ({ lotteryNumber, ticketNumber, start, end, from, wonAmount }) => {
+                    let nextResult = `<p>${from} won ${wonAmount} TL Tokens from ticket #${ticketNumber || 0
+                    } in lottery #${lotteryNumber || 0} (${start.toLocaleString()} - ${end.toLocaleString()})</p>
+                    ${resultElement.innerHTML}`;
+                    updateResultStore(nextResult);
+                    resultElement.innerHTML = nextResult;
+                }
+            );
+        })
+        redeemTicketButton.addEventListener('click', (ev) => {
+            ev.preventDefault();
+            queryTicket(lotteryNumberElement.value, ticketNumberElement.value,
+                ({ lotteryNumber, ticketNumber, start, end, from, wonAmount }) => {
+                    let nextResult = `<p>${from} won & redeemed ${wonAmount} TL Tokens from ticket #${ticketNumber || 0
+                    } in lottery #${lotteryNumber || 0} (${start.toLocaleString()} - ${end.toLocaleString()})</p>
+                    ${resultElement.innerHTML}`;
+                    updateResultStore(nextResult);
+                    resultElement.innerHTML = nextResult;
+                }
+            )
+        })
+        resultElement.innerHTML = getResultStore();
+    </script>
+</body>
+</html>

@@ -68,3 +68,4 @@ typings/
 
 ozsoy/
 src/build/
+.python-version

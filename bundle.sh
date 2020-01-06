@@ -20,14 +20,16 @@ fi
 rm ozsoy.zip
 rm ozsoy.zip.ots
 rm Report.pdf
-markdown-pdf Readme.md -o Report.pdf -r "portrait" -m "{\"html\":true,\"breaks\":false}"
+cat README.md > Report.md
+cat src/web/README.md >> Report.md
+markdown-pdf Report.md -o Report.pdf -r "portrait" -m "{\"html\":true,\"breaks\":false}"
+rm Report.md
 rm -rf src/build/*
 
-zip ozsoy.zip -r src Report.pdf test.sh LICENSE
+zip ozsoy.zip -r src Report.pdf test.sh LICENSE -x src/web/node_modules/\* src/web/*.lock src/web/*-lock.json src/web/.env
 ots-cli.js stamp ozsoy.zip
 ots-cli.js upgrade ozsoy.zip.ots
-rm Makefile
-rm project2.c
+
 rm -r ozsoy
 unzip ozsoy.zip -d ozsoy
 
@@ -35,4 +37,4 @@ echo "Zip ozsoy.zip is created, don't forget to check its contents"
 echo "Also, don't forget to push the .zip and .ots to github"
 echo "1. Put all your files in a directory (directory name should be last names of members of your group)"
 echo "2. Zip the directory"
-echo "3. E-mail the zipped file to  ozturan@gmail.com . Put the following in the subject: CMPE 483 HW1  <lastname1> <lastname2>  etc."
+echo "3. E-mail the zipped file to  ozturan@gmail.com . Put the following in the subject: CMPE 483 HW2  <lastname1> <lastname2>  etc."

@@ -144,5 +144,11 @@ chmod +x ./test.sh
 ./test.sh
 ``` 
 
-That script requires you to install `truffle`, `ganache-cli` and `concurrently` which you can install allwith running
+*Make sure that you have at least node version 8 installed.*
+
+That script requires you to install `truffle`, `ganache-cli` and `concurrently` which you can install all with running
 `npm i -g truffle ganache-cli concurrently`
+
+<div style="page-break-after: always;"></div>
+
+

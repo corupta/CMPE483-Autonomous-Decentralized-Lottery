@@ -162,23 +162,16 @@ contract LotteryContract {
         lotteries[lotteryNumber].currentRandom ^= number;
     }
 
-    // Redeem ticket prizes from a finished lottery
-    function redeemTicket(uint32 lotteryNumber, uint32 ticketNumber)
+    function queryTicket(uint32 lotteryNumber, uint32 ticketNumber)
     pastLotteryOnly(lotteryNumber)
     existingLotteryOnly(lotteryNumber)
     ticketExists(lotteryNumber, ticketNumber)
     ticketOwnerOnly(lotteryNumber, ticketNumber)
-    // revealedTicketOnly(lotteryNumber, ticketNumber)
-    // notRedeemedTicketOnly(lotteryNumber, ticketNumber)
-    public returns (uint64 wonAmount) {
+    public view returns (uint64 wonAmount) {
         // using some modifiers inline due to stack too deep error !!!
         require(
             (lotteries[lotteryNumber].tickets[ticketNumber].revealed == true),
             "The number submitted in this ticket was not revealed before"
-        );
-        require(
-            (lotteries[lotteryNumber].tickets[ticketNumber].redeemed == false),
-            "The requested ticket is already redeemed before"
         );
         uint32 ticketIndex = lotteries[lotteryNumber].tickets[ticketNumber].revealIndex;
         uint64 totalMoney = uint32(lotteries[lotteryNumber].tickets.length);
@@ -228,6 +221,27 @@ contract LotteryContract {
             }
             totalMoney = totalMoney / 2;
         }
+    }
+
+    // Redeem ticket prizes from a finished lottery
+    function redeemTicket(uint32 lotteryNumber, uint32 ticketNumber)
+    pastLotteryOnly(lotteryNumber)
+    existingLotteryOnly(lotteryNumber)
+    ticketExists(lotteryNumber, ticketNumber)
+    ticketOwnerOnly(lotteryNumber, ticketNumber)
+    // revealedTicketOnly(lotteryNumber, ticketNumber)
+    // notRedeemedTicketOnly(lotteryNumber, ticketNumber)
+    public returns (uint64 wonAmount) {
+        // using some modifiers inline due to stack too deep error !!!
+        require(
+            (lotteries[lotteryNumber].tickets[ticketNumber].revealed == true),
+            "The number submitted in this ticket was not revealed before"
+        );
+        require(
+            (lotteries[lotteryNumber].tickets[ticketNumber].redeemed == false),
+            "The requested ticket is already redeemed before"
+        );
+        wonAmount = queryTicket(lotteryNumber, ticketNumber);
         // below require should always succeed, if it doesn't that means
         // lottery contract does not have enough TL tokens in the EIP20 contract
         // which means that something went terribly wrong with this lottery contract
